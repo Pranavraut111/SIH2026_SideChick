@@ -1,5 +1,5 @@
 /** @import must precede all other statements */
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap");
 
 @import "tailwindcss";
 
@@ -13,35 +13,35 @@
    * A different format will require also updating the theme in tailwind.config.ts.
   */
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 240 5% 3%;
+    --foreground: 40 18% 94%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 240 5% 6%;
+    --card-foreground: 40 18% 94%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 240 5% 6%;
+    --popover-foreground: 40 18% 94%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 40 18% 94%;
+    --primary-foreground: 240 5% 4%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 240 4% 12%;
+    --secondary-foreground: 40 18% 94%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 240 4% 12%;
+    --muted-foreground: 240 4% 58%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 258 40% 28%;
+    --accent-foreground: 40 18% 94%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 240 4% 17%;
+    --input: 240 4% 17%;
+    --ring: 267 68% 70%;
 
-    --radius: 0.5rem;
+    --radius: 0.8rem;
 
     --sidebar-background: 0 0% 98%;
 
@@ -61,33 +61,33 @@
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 240 5% 3%;
+    --foreground: 40 18% 94%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 240 5% 6%;
+    --card-foreground: 40 18% 94%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 240 5% 6%;
+    --popover-foreground: 40 18% 94%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 40 18% 94%;
+    --primary-foreground: 240 5% 4%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 240 4% 12%;
+    --secondary-foreground: 40 18% 94%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 240 4% 12%;
+    --muted-foreground: 240 4% 58%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 258 40% 28%;
+    --accent-foreground: 40 18% 94%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --border: 240 4% 17%;
+    --input: 240 4% 17%;
+    --ring: 267 68% 70%;
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -106,12 +106,32 @@
 
   body {
     @apply bg-background text-foreground;
+    font-family: "Manrope", sans-serif;
+    background-image: radial-gradient(circle at 70% -10%, rgba(108, 82, 153, 0.12), transparent 30rem), radial-gradient(circle at 5% 30%, rgba(255,255,255,0.03), transparent 24rem);
   }
 
   :where(p, span, li, h1, h2, h3, h4, h5, h6, a, button, label, td, th) {
     overflow-wrap: anywhere;
     word-break: break-word;
   }
+
+  ::selection { background: rgba(170, 143, 226, 0.35); color: #fff; }
+  .font-mono { font-family: "DM Mono", monospace; }
+  .eyebrow { font-family: "DM Mono", monospace; font-size: 10px; line-height: 1; text-transform: uppercase; letter-spacing: .18em; color: rgba(255,255,255,.35); }
+  .brand-mark { position: relative; display: flex; height: 22px; width: 22px; align-items: center; justify-content: center; }
+  .brand-mark span { position: absolute; display: block; height: 8px; width: 16px; border-radius: 99px; background: #f3f1ee; transform: rotate(-35deg); }
+  .brand-mark span:nth-child(1) { left: 1px; top: 4px; }
+  .brand-mark span:nth-child(2) { left: 5px; top: 9px; opacity: .58; }
+  .brand-mark span:nth-child(3) { left: 9px; top: 14px; opacity: .22; }
+  .brand-mark-sm { transform: scale(.72); transform-origin: left center; width: 17px; }
+  .glass-surface { background: linear-gradient(135deg, rgba(255,255,255,.075), rgba(255,255,255,.025)); border: 1px solid rgba(255,255,255,.12); box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 20px 70px rgba(0,0,0,.24); backdrop-filter: blur(18px); }
+  .hairline { border-color: rgba(255,255,255,.09); }
+  .noise { position: relative; isolation: isolate; }
+  .noise::after { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .05; z-index: -1; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E"); }
+  .grid-fade { background-image: linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px); background-size: 48px 48px; mask-image: linear-gradient(to bottom, black, transparent 85%); }
+  @media (prefers-reduced-motion: no-preference) { .float-slow { animation: float-slow 8s ease-in-out infinite; } .pulse-dot { animation: pulse-dot 2.4s ease-in-out infinite; } }
+  @keyframes float-slow { 0%,100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-10px) rotate(2deg); } }
+  @keyframes pulse-dot { 0%,100% { box-shadow: 0 0 0 0 rgba(172,145,229,.38); } 50% { box-shadow: 0 0 0 8px rgba(172,145,229,0); } }
 
   pre,
   code {
