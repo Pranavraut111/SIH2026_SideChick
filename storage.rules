@@ -1,0 +1,65 @@
+rules_version = '2';
+
+/**
+ * ShikshaSetu Storage security rules.
+ *
+ * Storage rules are evaluated **independently of Firestore** — a Firestore document that
+ * says a file is private does nothing to protect the file itself. These rules must
+ * therefore be self-sufficient.
+ *
+ * Note on rule evaluation: multiple `allow` statements for the same method are OR-ed
+ * together. A previous version paired `allow read: if isOwner(userId)` with a second
+ * `allow read: if isAuthenticated()` in the same block, which meant the broad rule won
+ * and every signed-in account could read every user's resumes, certificates and
+ * academic records. Each method now has exactly one rule.
+ */
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAllowedType() {
+      return request.resource.contentType.matches('application/pdf')
+        || request.resource.contentType.matches('image/(png|jpeg|jpg|webp)')
+        || request.resource.contentType.matches('application/msword')
+        || request.resource.contentType.matches('application/vnd\\.openxmlformats-officedocument\\..*');
+    }
+
+    // ============================================
+    // Private user documents
+    // /users/{userId}/{type}/{filename}
+    //
+    // Resumes, certificates, academic records, internship reports. Owner-only.
+    // Anything that needs to be shared with a recruiter or institution is served
+    // through a server-issued signed URL, not by widening this rule.
+    // ============================================
+    match /users/{userId}/{allPaths=**} {
+      allow read: if isOwner(userId);
+
+      allow write: if isOwner(userId)
+        && request.resource.size < 10 * 1024 * 1024  // 10 MB
+        && isAllowedType();
+
+      allow delete: if isOwner(userId);
+    }
+
+    // ============================================
+    // Public organization and institution branding
+    // /public/{allPaths=**}
+    //
+    // Logos and cover images only. Written server-side after review.
+    // ============================================
+    match /public/{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Everything else is denied by default.
+  }
+}

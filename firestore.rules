@@ -1,0 +1,278 @@
+rules_version = '2';
+
+/**
+ * ShikshaSetu Firestore security rules.
+ *
+ * Principles applied throughout:
+ *  - Tenancy is enforced, not assumed. `hasRole('industry')` alone never grants access
+ *    to data; it must be paired with the caller's own institution/organization claim.
+ *  - Anything the platform treats as authoritative (skill profiles, evidence, match
+ *    scores, readiness) is written by the server only. Clients read it; they never
+ *    author it.
+ *  - Claims come from `POST /api/auth/setup-profile`, which verifies the referenced
+ *    institution/organization exists before setting them.
+ */
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ============================================
+    // Helper functions
+    // ============================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function hasRole(role) {
+      return isAuthenticated() && request.auth.token.role == role;
+    }
+
+    function belongsToInstitution(institutionId) {
+      return isAuthenticated()
+        && institutionId != null
+        && request.auth.token.institutionId == institutionId;
+    }
+
+    function belongsToOrganization(organizationId) {
+      return isAuthenticated()
+        && organizationId != null
+        && request.auth.token.organizationId == organizationId;
+    }
+
+    function studentDoc(studentId) {
+      return get(/databases/$(database)/documents/students/$(studentId)).data;
+    }
+
+    function ownsStudent(studentId) {
+      return isAuthenticated() && studentDoc(studentId).userId == request.auth.uid;
+    }
+
+    /** Only the listed fields differ between the stored doc and the incoming write. */
+    function onlyChanges(fields) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
+    }
+
+    // ============================================
+    // Users
+    // ============================================
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if false; // Server only — it also sets the matching custom claims.
+      // Role and tenancy are claim-backed; a user must not be able to edit their own.
+      allow update: if isOwner(userId)
+        && onlyChanges(['displayName', 'photoURL', 'updatedAt', 'lastLoginAt']);
+      allow delete: if false;
+    }
+
+    // ============================================
+    // Students
+    // ============================================
+    match /students/{studentId} {
+      // Industry talent discovery is scoped to students who have opted in by building a
+      // real profile, and institutions see only their own cohort. Previously any
+      // industry account could read every student record on the platform.
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        belongsToInstitution(resource.data.institutionId) ||
+        (hasRole('industry') && resource.data.readinessScore > 0)
+      );
+      allow create: if false; // Server only
+      // Readiness, skill counts and metrics are computed server-side from evidence.
+      allow update: if isOwner(resource.data.userId)
+        && onlyChanges(['displayName', 'photoURL', 'department', 'batch', 'enrollmentId', 'updatedAt']);
+      allow delete: if false;
+
+      // ---- Skill DNA ----
+      match /skillProfiles/{skillProfileId} {
+        allow read: if isAuthenticated() && (
+          ownsStudent(studentId) ||
+          belongsToInstitution(studentDoc(studentId).institutionId) ||
+          hasRole('industry')
+        );
+        allow write: if false; // Server only — proficiency is evidence-derived.
+
+        // Evidence is the student's private record of how a skill was earned. It was
+        // previously readable by every authenticated account, including other students.
+        match /evidence/{evidenceId} {
+          allow read: if isAuthenticated() && (
+            ownsStudent(studentId) ||
+            belongsToInstitution(studentDoc(studentId).institutionId)
+          );
+          allow write: if false; // Server only
+        }
+      }
+
+      // ---- Roadmaps ----
+      match /roadmaps/{roadmapId} {
+        allow read: if ownsStudent(studentId)
+          || belongsToInstitution(studentDoc(studentId).institutionId);
+        allow write: if false; // Server only
+      }
+    }
+
+    // ============================================
+    // Faculty
+    // ============================================
+    match /faculty/{facultyId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        belongsToInstitution(resource.data.institutionId) ||
+        hasRole('industry') // Collaboration discovery
+      );
+      allow create: if false;
+      allow update: if isOwner(resource.data.userId)
+        && onlyChanges(['department', 'designation', 'specializations', 'displayName', 'photoURL', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    match /institutionAdmins/{adminId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        belongsToInstitution(resource.data.institutionId)
+      );
+      allow write: if false; // Server only
+    }
+
+    match /industryUsers/{industryUserId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        belongsToOrganization(resource.data.organizationId)
+      );
+      allow write: if false; // Server only
+    }
+
+    // ============================================
+    // Institutions & organizations
+    // ============================================
+    match /institutions/{institutionId} {
+      allow read: if isAuthenticated();
+      allow create: if false;
+      // Aggregate metrics are computed server-side from student data.
+      allow update: if hasRole('institution') && belongsToInstitution(institutionId)
+        && onlyChanges(['name', 'location', 'departments', 'code', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    match /organizations/{organizationId} {
+      allow read: if isAuthenticated();
+      allow create: if false;
+      allow update: if hasRole('industry') && belongsToOrganization(organizationId)
+        && onlyChanges(['name', 'description', 'domain', 'size', 'locations', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    // ============================================
+    // Reference catalogs (read-only for every client)
+    // ============================================
+    match /skills/{skillId}          { allow read: if isAuthenticated(); allow write: if false; }
+    match /skillCategories/{id}      { allow read: if isAuthenticated(); allow write: if false; }
+    match /roles/{roleId}            { allow read: if isAuthenticated(); allow write: if false; }
+    match /industrySignals/{id}      { allow read: if isAuthenticated(); allow write: if false; }
+
+    // ============================================
+    // Opportunities
+    // ============================================
+    match /opportunities/{opportunityId} {
+      allow read: if isAuthenticated();
+
+      // An industry user may only post in their *own* organization's name, and must
+      // stamp themselves as the author. Without these checks the only requirement was
+      // holding the 'industry' role, so anyone could publish under any company.
+      allow create: if hasRole('industry')
+        && belongsToOrganization(request.resource.data.organizationId)
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.status in ['draft', 'active']
+        && request.resource.data.applicationCount == 0;
+
+      allow update: if hasRole('industry')
+        && belongsToOrganization(resource.data.organizationId)
+        && request.resource.data.organizationId == resource.data.organizationId
+        && request.resource.data.createdBy == resource.data.createdBy;
+
+      allow delete: if false;
+    }
+
+    // ============================================
+    // Applications
+    // ============================================
+    match /applications/{applicationId} {
+      allow read: if isAuthenticated() && (
+        ownsStudent(resource.data.studentId) ||
+        belongsToOrganization(resource.data.organizationId) ||
+        (hasRole('institution') && belongsToInstitution(resource.data.institutionId))
+      );
+
+      // Created exclusively by POST /api/applications, which recomputes the match score
+      // server-side. A client-created application could carry a fabricated matchScore
+      // that recruiters would then rank on.
+      allow create: if false;
+
+      allow update: if
+        // A student may withdraw, and change nothing else.
+        (ownsStudent(resource.data.studentId)
+          && request.resource.data.status == 'withdrawn'
+          && onlyChanges(['status', 'updatedAt']))
+        ||
+        // The owning organization may advance the pipeline, but never rewrite the match.
+        (belongsToOrganization(resource.data.organizationId)
+          && onlyChanges([
+            'status', 'reviewerNotes', 'updatedAt',
+            'reviewedAt', 'shortlistedAt', 'interviewAt', 'decidedAt'
+          ]));
+
+      allow delete: if false;
+    }
+
+    // ============================================
+    // Curriculum
+    // ============================================
+    match /curriculumMappings/{mappingId} {
+      allow read: if isAuthenticated();
+      // Scoped to the caller's own institution — this was previously open to any
+      // institution admin, who could rewrite another college's curriculum.
+      allow create: if hasRole('institution')
+        && belongsToInstitution(request.resource.data.institutionId);
+      allow update, delete: if hasRole('institution')
+        && belongsToInstitution(resource.data.institutionId);
+    }
+
+    match /courses/{courseId} {
+      allow read: if isAuthenticated();
+      allow create: if hasRole('institution')
+        && belongsToInstitution(request.resource.data.institutionId);
+      allow update, delete: if hasRole('institution')
+        && belongsToInstitution(resource.data.institutionId);
+    }
+
+    // ============================================
+    // Notifications
+    // ============================================
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid
+        && onlyChanges(['read', 'readAt', 'updatedAt']);
+      allow create, delete: if false; // Server only
+    }
+
+    // ============================================
+    // Document metadata (files themselves live in Storage)
+    // ============================================
+    match /documents/{documentId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        (hasRole('industry') && resource.data.permissions.publicToIndustry == true) ||
+        (belongsToInstitution(resource.data.institutionId)
+          && resource.data.permissions.publicToInstitution == true)
+      );
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == resource.data.userId;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+  }
+}

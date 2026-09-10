@@ -24,4 +24,14 @@ dist-ssr
 *.sw?
 
 .config/
-!.env
+
+# Environment files — never commit real values; use .env.example
+.env
+.env.*
+!.env.example
+
+# Firebase
+firebase-service-account.json
+*-firebase-adminsdk-*.json
+# Added by code-review-graph
+.code-review-graph/
